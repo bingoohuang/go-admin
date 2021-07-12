@@ -293,6 +293,7 @@ type TableInfo struct {
 	Table      string
 	PrimaryKey string
 	Delimiter  string
+	Delimiter2 string
 	Driver     string
 }
 
@@ -305,29 +306,29 @@ func (f FieldList) GetTheadAndFilterForm(info TableInfo, params parameter.Parame
 		joins      = ""
 		joinTables = make([]string, 0)
 		filterForm = make([]FormField, 0)
-		tableName  = info.Delimiter + info.Table + info.Delimiter
+		tableName  = info.Delimiter + info.Table + info.Delimiter2
 	)
 	for _, field := range f {
 		if field.Field != info.PrimaryKey && modules.InArray(columns, field.Field) &&
 			!field.Joins.Valid() {
-			fields += tableName + "." + modules.FilterField(field.Field, info.Delimiter) + ","
+			fields += tableName + "." + modules.FilterField(field.Field, info.Delimiter, info.Delimiter2) + ","
 		}
 
 		headField := field.Field
 
 		if field.Joins.Valid() {
 			headField = field.Joins.Last().GetTableName() + parameter.FilterParamJoinInfix + field.Field
-			joinFields += db.GetAggregationExpression(info.Driver, field.Joins.Last().GetTableName(info.Delimiter)+"."+
-				modules.FilterField(field.Field, info.Delimiter), headField, JoinFieldValueDelimiter) + ","
+			joinFields += db.GetAggregationExpression(info.Driver, field.Joins.Last().GetTableName(info.Delimiter, info.Delimiter2)+"."+
+				modules.FilterField(field.Field, info.Delimiter, info.Delimiter2), headField, JoinFieldValueDelimiter) + ","
 			for _, join := range field.Joins {
-				if !modules.InArray(joinTables, join.GetTableName(info.Delimiter)) {
-					joinTables = append(joinTables, join.GetTableName(info.Delimiter))
+				if !modules.InArray(joinTables, join.GetTableName(info.Delimiter, info.Delimiter2)) {
+					joinTables = append(joinTables, join.GetTableName(info.Delimiter, info.Delimiter2))
 					if join.BaseTable == "" {
 						join.BaseTable = info.Table
 					}
-					joins += " left join " + modules.FilterField(join.Table, info.Delimiter) + " " + join.TableAlias + " on " +
-						join.GetTableName(info.Delimiter) + "." + modules.FilterField(join.JoinField, info.Delimiter) + " = " +
-						modules.Delimiter(info.Delimiter, join.BaseTable) + "." + modules.FilterField(join.Field, info.Delimiter)
+					joins += " left join " + modules.FilterField(join.Table, info.Delimiter, info.Delimiter2) + " " + join.TableAlias + " on " +
+						join.GetTableName(info.Delimiter, info.Delimiter2) + "." + modules.FilterField(join.JoinField, info.Delimiter, info.Delimiter2) + " = " +
+						modules.Delimiter(info.Delimiter, info.Delimiter2, join.BaseTable) + "." + modules.FilterField(join.Field, info.Delimiter, info.Delimiter2)
 				}
 			}
 		}
@@ -368,22 +369,22 @@ func (f FieldList) GetThead(info TableInfo, params parameter.Parameters, columns
 	for _, field := range f {
 		if field.Field != info.PrimaryKey && modules.InArray(columns, field.Field) &&
 			!field.Joins.Valid() {
-			fields += info.Table + "." + modules.FilterField(field.Field, info.Delimiter) + ","
+			fields += info.Table + "." + modules.FilterField(field.Field, info.Delimiter, info.Delimiter2) + ","
 		}
 
 		headField := field.Field
 
 		if field.Joins.Valid() {
-			headField = field.Joins.Last().GetTableName(info.Delimiter) + parameter.FilterParamJoinInfix + field.Field
+			headField = field.Joins.Last().GetTableName(info.Delimiter, info.Delimiter2) + parameter.FilterParamJoinInfix + field.Field
 			for _, join := range field.Joins {
-				if !modules.InArray(joinTables, join.GetTableName(info.Delimiter)) {
-					joinTables = append(joinTables, join.GetTableName(info.Delimiter))
+				if !modules.InArray(joinTables, join.GetTableName(info.Delimiter, info.Delimiter2)) {
+					joinTables = append(joinTables, join.GetTableName(info.Delimiter, info.Delimiter2))
 					if join.BaseTable == "" {
 						join.BaseTable = info.Table
 					}
-					joins += " left join " + modules.FilterField(join.Table, info.Delimiter) + " " + join.TableAlias + " on " +
-						join.GetTableName(info.Delimiter) + "." + modules.FilterField(join.JoinField, info.Delimiter) + " = " +
-						modules.Delimiter(info.Delimiter, join.BaseTable) + "." + modules.FilterField(join.Field, info.Delimiter)
+					joins += " left join " + modules.FilterField(join.Table, info.Delimiter, info.Delimiter2) + " " + join.TableAlias + " on " +
+						join.GetTableName(info.Delimiter, info.Delimiter2) + "." + modules.FilterField(join.JoinField, info.Delimiter, info.Delimiter2) + " = " +
+						modules.Delimiter(info.Delimiter, info.Delimiter2, join.BaseTable) + "." + modules.FilterField(join.Field, info.Delimiter, info.Delimiter2)
 				}
 			}
 		}
@@ -496,7 +497,7 @@ func (j Join) GetTableName(delimiter ...string) string {
 		return j.TableAlias
 	}
 	if len(delimiter) > 0 {
-		return delimiter[0] + j.Table + delimiter[0]
+		return delimiter[0] + j.Table + delimiter[1]
 	}
 	return j.Table
 }
@@ -634,7 +635,7 @@ type Where struct {
 
 type Wheres []Where
 
-func (whs Wheres) Statement(wheres, delimiter string, whereArgs []interface{}, existKeys, columns []string) (string, []interface{}) {
+func (whs Wheres) Statement(wheres, delimiter, delimiter2 string, whereArgs []interface{}, existKeys, columns []string) (string, []interface{}) {
 	pwheres := ""
 	for k, wh := range whs {
 
@@ -661,9 +662,9 @@ func (whs Wheres) Statement(wheres, delimiter string, whereArgs []interface{}, e
 			}
 
 			if whTable != "" {
-				pwheres += whTable + "." + modules.FilterField(whField, delimiter) + " " + wh.Operator + " ? " + joinMark + " "
+				pwheres += whTable + "." + modules.FilterField(whField, delimiter, delimiter2) + " " + wh.Operator + " ? " + joinMark + " "
 			} else {
-				pwheres += modules.FilterField(whField, delimiter) + " " + wh.Operator + " ? " + joinMark + " "
+				pwheres += modules.FilterField(whField, delimiter, delimiter2) + " " + wh.Operator + " ? " + joinMark + " "
 			}
 			whereArgs = append(whereArgs, wh.Arg)
 		}
@@ -1377,17 +1378,17 @@ func (i *InfoPanel) FieldFilterOnChooseAjax(field, url string, handler Handler) 
 }
 
 func (i *InfoPanel) FieldFilterOnChooseHide(value string, field ...string) *InfoPanel {
-	i.FooterHtml += chooseHideJS(i.FieldList[i.curFieldListIndex].Field, value, field...)
+	i.FooterHtml += chooseHideJS(i.FieldList[i.curFieldListIndex].Field, []string{value}, field...)
 	return i
 }
 
 func (i *InfoPanel) FieldFilterOnChooseShow(value string, field ...string) *InfoPanel {
-	i.FooterHtml += chooseShowJS(i.FieldList[i.curFieldListIndex].Field, value, field...)
+	i.FooterHtml += chooseShowJS(i.FieldList[i.curFieldListIndex].Field, []string{value}, field...)
 	return i
 }
 
 func (i *InfoPanel) FieldFilterOnChooseDisable(value string, field ...string) *InfoPanel {
-	i.FooterHtml += chooseDisableJS(i.FieldList[i.curFieldListIndex].Field, value, field...)
+	i.FooterHtml += chooseDisableJS(i.FieldList[i.curFieldListIndex].Field, []string{value}, field...)
 	return i
 }
 
@@ -1636,9 +1637,29 @@ func (i *InfoPanel) HideDetailButton() *InfoPanel {
 	return i
 }
 
+func (i *InfoPanel) HideCheckBoxColumn() *InfoPanel {
+	return i.HideColumn(1)
+}
+
+func (i *InfoPanel) HideColumn(n int) *InfoPanel {
+	i.AddCSS(template.CSS(fmt.Sprintf(`
+	.box-body table.table tbody tr td:nth-child(%v), .box-body table.table tbody tr th:nth-child(%v) {
+		display: none;
+	}`, n, n)))
+	return i
+}
+
 func (i *InfoPanel) addFooterHTML(footer template.HTML) *InfoPanel {
 	i.FooterHtml += template.HTML(ParseTableDataTmpl(footer))
 	return i
+}
+
+func (i *InfoPanel) AddCSS(css template.CSS) *InfoPanel {
+	return i.addFooterHTML(template.HTML("<style>" + css + "</style>"))
+}
+
+func (i *InfoPanel) AddJS(js template.JS) *InfoPanel {
+	return i.addFooterHTML(template.HTML("<script>" + js + "</script>"))
 }
 
 func (i *InfoPanel) addCallback(node context.Node) *InfoPanel {

@@ -300,7 +300,7 @@ func Init(c db.Connection) {
 
 	makefileContent := makefile
 	if p.Driver == db.DriverSqlite {
-		makefileContent = bytes.Replace(makefileContent, []byte("CGO_ENABLED=0"), []byte("CGO_ENABLED=1"), -1)
+		makefileContent = bytes.ReplaceAll(makefileContent, []byte("CGO_ENABLED=0"), []byte("CGO_ENABLED=1"))
 	}
 
 	checkError(ioutil.WriteFile("./Makefile", makefileContent, 0644))
@@ -323,6 +323,8 @@ package tables
 
 import "github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
 
+// Generators is a map of table models.
+//
 // The key of Generators is the prefix of table info url.
 // The corresponding value is the Form and Table data.
 //
