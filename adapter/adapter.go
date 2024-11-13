@@ -7,11 +7,13 @@ package adapter
 import (
 	"bytes"
 	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/auth"
 	"github.com/GoAdminGroup/go-admin/modules/config"
+	"github.com/GoAdminGroup/go-admin/modules/constant"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/modules/errors"
 	"github.com/GoAdminGroup/go-admin/modules/logger"
@@ -61,7 +63,9 @@ type WebFrameWork interface {
 	Lang() string
 	Path() string
 	Method() string
+	Request() *http.Request
 	FormParam() url.Values
+	Query() url.Values
 	IsPjax() bool
 	Redirect()
 	SetContentType()
@@ -86,17 +90,17 @@ func (base *BaseAdapter) GetConnection() db.Connection {
 }
 
 // HTMLContentType return the default content type header.
-func (base *BaseAdapter) HTMLContentType() string {
+func (*BaseAdapter) HTMLContentType() string {
 	return "text/html; charset=utf-8"
 }
 
 // CookieKey return the cookie key.
-func (base *BaseAdapter) CookieKey() string {
+func (*BaseAdapter) CookieKey() string {
 	return auth.DefaultCookieKey
 }
 
 // GetUser is a helper function get the auth user model from the context.
-func (base *BaseAdapter) GetUser(ctx interface{}, wf WebFrameWork) (models.UserModel, bool) {
+func (*BaseAdapter) GetUser(ctx interface{}, wf WebFrameWork) (models.UserModel, bool) {
 	cookie, err := wf.SetContext(ctx).GetCookie()
 
 	if err != nil {
@@ -108,7 +112,7 @@ func (base *BaseAdapter) GetUser(ctx interface{}, wf WebFrameWork) (models.UserM
 }
 
 // GetUse is a helper function adds the plugins to the framework.
-func (base *BaseAdapter) GetUse(app interface{}, plugin []plugins.Plugin, wf WebFrameWork) error {
+func (*BaseAdapter) GetUse(app interface{}, plugin []plugins.Plugin, wf WebFrameWork) error {
 	if err := wf.SetApp(app); err != nil {
 		return err
 	}
@@ -125,6 +129,10 @@ func (base *BaseAdapter) GetUse(app interface{}, plugin []plugins.Plugin, wf Web
 
 	return nil
 }
+
+func (*BaseAdapter) Run() error         { panic("not implement") }
+func (*BaseAdapter) DisableLog()        { panic("not implement") }
+func (*BaseAdapter) Static(_, _ string) { panic("not implement") }
 
 // GetContent is a helper function of adapter.Content
 func (base *BaseAdapter) GetContent(ctx interface{}, getPanelFn types.GetPanelFn, wf WebFrameWork,
@@ -152,28 +160,31 @@ func (base *BaseAdapter) GetContent(ctx interface{}, getPanelFn types.GetPanelFn
 		err   error
 	)
 
+	gctx := context.NewContext(newBase.Request())
+
 	if !auth.CheckPermissions(user, newBase.Path(), newBase.Method(), newBase.FormParam()) {
-		panel = template.WarningPanel(errors.NoPermission, template.NoPermission403Page)
+		panel = template.WarningPanel(gctx, errors.NoPermission, template.NoPermission403Page)
 	} else {
 		panel, err = getPanelFn(ctx)
 		if err != nil {
-			panel = template.WarningPanel(err.Error())
+			panel = template.WarningPanel(gctx, err.Error())
 		}
 	}
 
 	fn(panel.Callbacks...)
 
-	tmpl, tmplName := template.Default().GetTemplate(newBase.IsPjax())
+	tmpl, tmplName := template.Default(gctx).GetTemplate(newBase.IsPjax())
 
 	buf := new(bytes.Buffer)
-	hasError = tmpl.ExecuteTemplate(buf, tmplName, types.NewPage(&types.NewPageParam{
+	hasError = tmpl.ExecuteTemplate(buf, tmplName, types.NewPage(gctx, &types.NewPageParam{
 		User:         user,
 		Menu:         menu.GetGlobalMenu(user, wf.GetConnection(), newBase.Lang()).SetActiveClass(config.URLRemovePrefix(newBase.Path())),
 		Panel:        panel.GetContent(config.IsProductionEnvironment()),
-		Assets:       template.GetComponentAssetImportHTML(),
+		Assets:       template.GetComponentAssetImportHTML(gctx),
 		Buttons:      navButtons.CheckPermission(user),
-		TmplHeadHTML: template.Default().GetHeadHTML(),
-		TmplFootJS:   template.Default().GetFootJS(),
+		TmplHeadHTML: template.Default(gctx).GetHeadHTML(),
+		TmplFootJS:   template.Default(gctx).GetFootJS(),
+		Iframe:       newBase.Query().Get(constant.IframeKey) == "true",
 	}))
 
 	if hasError != nil {

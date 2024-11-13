@@ -7,7 +7,6 @@ package db
 import (
 	dbsql "database/sql"
 	"errors"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -450,6 +449,13 @@ func (sql *SQL) ShowColumns() ([]map[string]interface{}, error) {
 	return sql.diver.QueryWithConnection(sql.conn, sql.dialect.ShowColumns(sql.TableName))
 }
 
+// ShowColumnsWithComment show columns info.
+func (sql *SQL) ShowColumnsWithComment(database string) ([]map[string]interface{}, error) {
+	defer RecycleSQL(sql)
+
+	return sql.diver.QueryWithConnection(sql.conn, sql.dialect.ShowColumnsWithComment(database, sql.TableName))
+}
+
 // ShowTables show table info.
 func (sql *SQL) ShowTables() ([]string, error) {
 	defer RecycleSQL(sql)
@@ -555,7 +561,7 @@ func (sql *SQL) Insert(values dialect.H) (int64, error) {
 
 	sql.dialect.Insert(&sql.SQLComponent)
 
-	if sql.diver.Name() == DriverPostgresql && (strings.Index(postgresInsertCheckTableName, sql.TableName) != -1) {
+	if sql.diver.Name() == DriverPostgresql && (strings.Contains(postgresInsertCheckTableName, sql.TableName)) {
 
 		resMap, err := sql.diver.QueryWith(sql.tx, sql.conn, sql.Statement+" RETURNING id", sql.Args...)
 
@@ -602,10 +608,7 @@ func (sql *SQL) Insert(values dialect.H) (int64, error) {
 }
 
 func (sql *SQL) wrap(field string) string {
-	if sql.diver.Name() == "mssql" {
-		return fmt.Sprintf(`[%s]`, field)
-	}
-	return sql.diver.GetDelimiter() + field + sql.diver.GetDelimiter()
+	return sql.diver.GetDelimiter() + field + sql.diver.GetDelimiter2()
 }
 
 func (sql *SQL) clean() {

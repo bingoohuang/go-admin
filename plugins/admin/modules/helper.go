@@ -4,7 +4,7 @@ import (
 	"html/template"
 	"strconv"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 func InArray(arr []string, str string) bool {
@@ -16,18 +16,12 @@ func InArray(arr []string, str string) bool {
 	return false
 }
 
-func Delimiter(del, s string) string {
-	if del == "[" {
-		return "[" + s + "]"
-	}
-	return del + s + del
+func Delimiter(del, del2, s string) string {
+	return del + s + del2
 }
 
-func FilterField(filed, delimiter string) string {
-	if delimiter == "[" {
-		return "[" + filed + "]"
-	}
-	return delimiter + filed + delimiter
+func FilterField(filed, delimiter, delimiter2 string) string {
+	return delimiter + filed + delimiter2
 }
 
 func InArrayWithoutEmpty(arr []string, str string) bool {
@@ -53,7 +47,7 @@ func RemoveBlankFromArray(s []string) []string {
 }
 
 func Uuid() string {
-	return uuid.NewV4().String()
+	return uuid.New().String()
 }
 
 func SetDefault(source, def string) string {

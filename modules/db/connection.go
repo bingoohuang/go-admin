@@ -22,6 +22,8 @@ const (
 	DriverPostgresql = "postgresql"
 	// DriverMssql is a const value of mssql driver.
 	DriverMssql = "mssql"
+	// DriverOceanBase is a const value of oceanbase driver.
+	DriverOceanBase = "oceanbase"
 )
 
 // Connection is a connection handler of database.
@@ -62,8 +64,9 @@ type Connection interface {
 
 	Close() []error
 
-	// GetDelimiter get the default testDelimiter.
 	GetDelimiter() string
+	GetDelimiter2() string
+	GetDelimiters() []string
 
 	GetDB(key string) *sql.DB
 
@@ -83,6 +86,8 @@ func GetConnectionByDriver(driver string) Connection {
 		return GetSqliteDB()
 	case "postgresql":
 		return GetPostgresqlDB()
+	case "oceanbase":
+		return GetOceanBaseDB()
 	default:
 		panic("driver not found!")
 	}
@@ -112,6 +117,9 @@ func GetAggregationExpression(driver, field, headField, delimiter string) string
 		return fmt.Sprintf("group_concat(%s, '%s') as %s", field, delimiter, headField)
 	case "mssql":
 		return fmt.Sprintf("string_agg(%s, '%s') as [%s]", field, delimiter, headField)
+	case "oceanbase":
+		return fmt.Sprintf("group_concat(%s separator '%s') as %s", field, delimiter, headField)
+
 	default:
 		panic("wrong driver")
 	}
@@ -129,6 +137,7 @@ var ignoreErrors = [...][]string{
 	{
 		"LastInsertId is not supported",
 		"There is no generated identity value",
+		"LastInsertId is not supported by this driver",
 	},
 	// delete
 	{
@@ -139,6 +148,7 @@ var ignoreErrors = [...][]string{
 		"LastInsertId is not supported",
 		"There is no generated identity value",
 		"no affect",
+		"LastInsertId is not supported by this driver",
 	},
 	// query
 	{
@@ -146,6 +156,7 @@ var ignoreErrors = [...][]string{
 		"There is no generated identity value",
 		"no affect",
 		"out of index",
+		"LastInsertId is not supported by this driver",
 	},
 }
 

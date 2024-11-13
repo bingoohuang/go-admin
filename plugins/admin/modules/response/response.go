@@ -52,10 +52,10 @@ func Alert(ctx *context.Context, desc, title, msg string, conn db.Connection, bt
 		pt = pageType[0]
 	}
 
-	pageTitle, description, content := template.GetPageContentFromPageType(title, desc, msg, pt)
+	pageTitle, description, content := template.GetPageContentFromPageType(ctx, title, desc, msg, pt)
 
-	tmpl, tmplName := template.Default().GetTemplate(ctx.IsPjax())
-	buf := template.Execute(&template.ExecuteParam{
+	tmpl, tmplName := template.Default(ctx).GetTemplate(ctx.IsPjax())
+	buf := template.Execute(ctx, &template.ExecuteParam{
 		User:     user,
 		TmplName: tmplName,
 		Tmpl:     tmpl,
@@ -64,11 +64,12 @@ func Alert(ctx *context.Context, desc, title, msg string, conn db.Connection, bt
 			Description: description,
 			Title:       pageTitle,
 		},
-		Config:    *config.Get(),
+		Config:    config.Get(),
 		Menu:      menu.GetGlobalMenu(user, conn, ctx.Lang()).SetActiveClass(config.URLRemovePrefix(ctx.Path())),
 		Animation: true,
 		Buttons:   *btns,
 		IsPjax:    ctx.IsPjax(),
+		Iframe:    ctx.IsIframe(),
 	})
 	ctx.HTML(http.StatusOK, buf.String())
 }
